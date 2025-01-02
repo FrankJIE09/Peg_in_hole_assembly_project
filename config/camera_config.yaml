@@ -1,0 +1,8 @@
+camera:
+  resolution: [1280, 720]
+  frame_rate: 30
+  intrinsic_parameters:
+    fx: 525.0
+    fy: 525.0
+    cx: 640.0
+    cy: 360.0

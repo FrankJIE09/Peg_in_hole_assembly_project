@@ -1,0 +1,5 @@
+robot:
+  model: UR5
+  max_speed: 1.0  # m/s
+  max_acceleration: 2.0  # m/s^2
+  home_position: [0.0, 0.0, 0.5, 0.0, 0.0, 0.0]
