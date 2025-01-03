@@ -1,0 +1,5 @@
+initial_position: [ 0,0,0,0,0,0 ]
+
+target_position: [ 0,0,0,0,0,0 ]
+
+exposure: 100  # 相机曝光值，根据需要调整
