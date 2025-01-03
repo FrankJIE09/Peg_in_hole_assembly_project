@@ -31,7 +31,7 @@ peg_hole_assembly_project/
 │   │   └── logging_utils.py    # 日志工具
 │   └── main.py                 # 主程序入口
 ├── scripts/                    # 辅助脚本
-│   ├── calibrate_camera.py     # 相机标定脚本
+│   ├── hand_on_eye     # 相机标定脚本
 │   ├── calibrate_force.py      # 力传感器校准脚本
 │   └── generate_report.py      # 实验报告生成脚本
 ├── requirements.txt            # Python依赖

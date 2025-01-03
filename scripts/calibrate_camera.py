@@ -1,1 +1,0 @@
-# Placeholder for camera calibration script
