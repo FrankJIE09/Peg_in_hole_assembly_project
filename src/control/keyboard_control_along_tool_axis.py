@@ -2,7 +2,7 @@ import cv2
 import time
 import math
 import numpy as np
-from dazu.CPS import CPSClient
+from elibot.CPS import CPSClient
 import yaml
 from scipy.spatial.transform import Rotation as R
 
@@ -69,7 +69,7 @@ def update_pose(current_pose, x, y, z, roll, pitch, yaw):
 class RobotController:
     def __init__(self, box_id=0, rbt_id=0, position_file='./config/position.yaml',
                  calibration_file='./config/hand_eye_config.yaml',
-                 step_size=0.2, rotation_step_size=0.2):
+                 step_size=5, rotation_step_size=0.1 * 10):
         """
         初始化机器人控制器
         :param step_size: 控制机器人每次移动的步进量（默认值为1）
@@ -79,16 +79,13 @@ class RobotController:
         self.rbt_id = rbt_id
         self.position_file = position_file
         self.calibration_file = calibration_file
-        self.client = CPSClient()
+        self.client = CPSClient(ip="192.168.11.8")
         self.step_size = step_size  # 步进量
         self.rotation_step_size = rotation_step_size  # 旋转步进量
 
         # 连接到电箱和控制器
-        self.client.HRIF_Connect(self.box_id, '192.168.11.7', 10003)
-        self.client.HRIF_Connect2Controller(self.box_id)
-
         # 获取当前位置
-        self.current_pose = self.client.read_pos()
+        self.current_pose = self.client.getTcpPos()
         print(f"Initial Current Pose: {self.current_pose}")
 
         # 读取目标位置
@@ -118,7 +115,7 @@ class RobotController:
         # 创建窗口
         cv2.namedWindow('Robot Control')
         dServoTime = 0.025
-        dLookaheadTime = 0.05
+        dLookaheadTime = 0.5
 
         while True:
             # 显示图像（简单的文本提示）
@@ -144,7 +141,7 @@ class RobotController:
             x, y, z, rx, ry, rz = 0, 0, 0, 0, 0, 0
 
             # 按键事件处理
-            key = cv2.waitKey(1) & 0xFF  # 获取按键的ASCII码
+            key = cv2.waitKey(100) & 0xFF  # 获取按键的ASCII码
             if key == 27:  # 按下ESC退出
                 break
             elif key == ord('w'):
@@ -172,28 +169,28 @@ class RobotController:
             elif key == ord('o'):
                 rz -= self.rotation_step_size  # 绕Z轴逆时针旋转（减少Rz）
 
-            self.current_pose = self.client.read_pos()
+            self.current_pose = self.client.getTcpPos()
             roll, pitch, yaw = self.current_pose[3], self.current_pose[4], self.current_pose[5]
             base2end_rpy_matrix = R.from_euler('xyz', [roll, pitch, yaw], degrees=True).as_matrix()
-            transformation_matrix_diff_rpy = R.from_euler('xyz', [rx, ry, rz], degrees=True).as_matrix()
-            xyz_diff = np.array([x, y, z]) @ np.linalg.inv(base2end_rpy_matrix)
-            rpy = R.from_matrix(base2end_rpy_matrix @ transformation_matrix_diff_rpy).as_euler("xyz", degrees=True)
-            pose = np.array([self.current_pose[0] + xyz_diff[0],
-                    self.current_pose[1] + xyz_diff[1],
-                    self.current_pose[2] + xyz_diff[2],
-                    rpy[0],
-                    rpy[1],
-                    rpy[2]
-                    ],dtype=float)
-            # 更新目标位置并控制机器人
-            self.client.HRIF_StartServo(self.box_id, self.rbt_id, dServoTime, dLookaheadTime)
-            self.move_arm(pose, dServoTime)
-            self.current_pose = self.client.read_pos()
-            x, y, z = self.current_pose[0], self.current_pose[1], self.current_pose[2]
-            rx, ry, rz = self.current_pose[3], self.current_pose[4], self.current_pose[5]
+            print(x, y, z, rx, ry, rz)
 
+            x, y, z = np.array([x, y, z]) @ base2end_rpy_matrix.T
+
+            rx, ry, rz = R.from_matrix(R.from_euler('xyz', [rx, ry, rz], degrees=True).as_matrix() @ base2end_rpy_matrix.T).as_euler("xyz",degrees=True)
+            # 更新目标位置并控制机器人
+            acc = 100  # 位移加速度
+            arot = 10  # 姿态加速度
+            t = 0.1  # 执行时间
+            pose_diff = np.array([x, y, z, rx, ry, rz], dtype=float).tolist()
+            pose_diff = [0 if abs(x) < 0.0000001 else x for x in pose_diff]
+            # print(pose_diff)
+
+            suc, result, _ = self.client.moveBySpeedl(pose_diff, acc, arot, t)
+            ###############################################################
+            self.current_pose = self.client.getTcpPos()
+            rpy_to_transformation_matrix(self.current_pose[0], self.current_pose[1], self.current_pose[2],
+                                         self.current_pose[3], self.current_pose[4], self.current_pose[5])
             # 打印当前坐标
-            print(f"Current Pose: X={x}, Y={y}, Z={z}, Rx={rx}, Ry={ry}, Rz={rz}")
 
         # 销毁窗口
         cv2.destroyAllWindows()
