@@ -94,7 +94,7 @@ class RobotController:
         """
         # 初始化坐标
         sensor_data = np.zeros(6)
-        while abs(sensor_data[2]) < 60:
+        while True:
             sensor_data = self.FT_sensor.read_sensor_data()
             print(sensor_data)
             x, y, z = sensor_data[:3].copy()  # x, y, z 为前3个系数
@@ -106,8 +106,7 @@ class RobotController:
             base2end_rpy_matrix = R.from_euler('xyz', [roll, pitch, yaw], degrees=True).as_matrix()
 
             x, y, z = np.array([x, y, z]) @ base2end_rpy_matrix.T
-            z = z - 10
-            y = y - 10
+
             # 更新目标位置并控制机器人
             acc = 100  # 位移加速度
             arot = 10  # 姿态加速度
@@ -120,34 +119,17 @@ class RobotController:
             suc, result, _ = self.client.moveBySpeedl(pose_diff, acc, arot, t)
             ###############################################################
         self.current_pose = self.client.getTcpPos()
-        offset = self.cal_offset(np.deg2rad(180 - self.current_pose[3]))
-        pre_pose = self.current_pose.copy()
-        pre_pose[2] = pre_pose[2] + 100
-        self.client.moveLine(pre_pose)
-        pre_pose[3] = 180
-        self.client.moveLine(pre_pose)
-
-        self.current_pose = self.client.getTcpPos()
-        pre_pose = self.current_pose.copy()
-        pre_pose[1] = pre_pose[1] - offset[0] - 4.7
-        pre_pose[3:] = [180, 0, 0]
-        self.client.moveLine(pre_pose)
+        print()
 
 
 def main():
     controller = RobotController()
     print(controller.client.getTcpPos())
-    cycle_position = [676.3858479311426, -12.024369494928743, 78.188093904096049, 135, 0, 0]
-    cycle_position[2] = cycle_position[2] + 10
-    cycle_position[1] = cycle_position[1] + 2
-
+    cycle_position = [677.4232640090808, -7.164779333199162, 338.047022971049]
     cycle_position_pre = cycle_position.copy()
-    cycle_position_pre[2] = cycle_position_pre[2] + 70
-    cycle_position_pre[3:] = [135, 0, 0]
-    controller.client.moveLine(cycle_position_pre)
-    controller.client.moveLine(cycle_position)
-
-    # controller.adjust_pose_assembly(target_position=cycle_position_pre)
+    cycle_position_pre[2] = cycle_position_pre[2] + 200
+    controller.adjust_pose_assembly(target_position=cycle_position_pre)
+    controller.client.alignZAxis()
     # controller.adjust_pose_assembly(target_position=cycle_position)
     controller.admittance_control()  # 启动cv2控制
 
